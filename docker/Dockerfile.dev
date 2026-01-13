@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1.7
+FROM oven/bun:1.2.22
+
+WORKDIR /app
+
+# Optionally limit installation to a single workspace (speeds up builds a lot).
+# Example: BUN_FILTER=@midday/api
+ARG BUN_FILTER=""
+# Extra flags for bun install if needed.
+ARG BUN_INSTALL_FLAGS=""
+
+ENV BUN_INSTALL_CACHE_DIR=/root/.bun/install/cache
+
+# Install deps (monorepo)
+COPY package.json bun.lock turbo.json tsconfig.json biome.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY types ./types
+
+RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache,sharing=locked \
+  bash -lc 'set -euo pipefail; \
+    FILTER_ARGS=""; \
+    if [ -n "${BUN_FILTER}" ]; then FILTER_ARGS="--filter=${BUN_FILTER}"; fi; \
+    bun install --frozen-lockfile --no-progress --network-concurrency=8 ${FILTER_ARGS} ${BUN_INSTALL_FLAGS} || \
+      (echo "bun install failed; clearing cache and retrying..." >&2; \
+       rm -rf /root/.bun/install/cache/*; \
+       bun install --frozen-lockfile --no-progress --network-concurrency=4 ${FILTER_ARGS} ${BUN_INSTALL_FLAGS})'

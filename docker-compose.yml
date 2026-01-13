@@ -1,0 +1,122 @@
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    container_name: midday-db
+    environment:
+      POSTGRES_DB: midday
+      POSTGRES_USER: midday
+      POSTGRES_PASSWORD: midday
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18+ images store data under /var/lib/postgresql/<major>/...
+      # (see upstream docker-library/postgres notes). Mount the parent dir.
+      - midday_db_data:/var/lib/postgresql
+      # On SELinux hosts (Fedora/RHEL), the `:z` label is required for bind mounts.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:z
+      - ./apps/api/migrations/0000_bumpy_chat.sql:/docker-entrypoint-initdb.d/99_schema_source.sql:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U midday -d midday"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: midday-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - midday_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        BUN_FILTER: "@midday/api"
+    container_name: midday-api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./apps/api/.env.docker
+    environment:
+      PORT: "3003"
+      DATABASE_PRIMARY_URL: postgresql://midday:midday@db:5432/midday
+      DATABASE_FRA_URL: postgresql://midday:midday@db:5432/midday
+      DATABASE_SJC_URL: postgresql://midday:midday@db:5432/midday
+      DATABASE_IAD_URL: postgresql://midday:midday@db:5432/midday
+      DATABASE_PRIMARY_POOLER_URL: postgresql://midday:midday@db:5432/midday
+      DATABASE_SESSION_POOLER: postgresql://midday:midday@db:5432/midday
+      REDIS_URL: redis://redis:6379
+      REDIS_QUEUE_URL: redis://redis:6379
+      ALLOWED_API_ORIGINS: http://localhost:3001
+      MIDDAY_DASHBOARD_URL: http://localhost:3001
+    command: ["bash", "-lc", "cd apps/api && bun run dev"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bun -e \"fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        BUN_FILTER: "@midday/dashboard"
+    container_name: midday-dashboard
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./apps/dashboard/.env.docker
+    environment:
+      NEXT_PUBLIC_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3003
+      API_INTERNAL_URL: http://api:3003
+    command: ["bash", "-lc", "cd apps/dashboard && bun run dev -- -H 0.0.0.0"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        BUN_FILTER: "@midday/worker"
+    container_name: midday-worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./apps/worker/.env.docker
+    environment:
+      PORT: "8080"
+      WORKER_ENV: development
+      DATABASE_PRIMARY_POOLER_URL: postgresql://midday:midday@db:5432/midday
+      REDIS_QUEUE_URL: redis://redis:6379
+    command: ["bash", "-lc", "cd apps/worker && bun run dev"]
+
+volumes:
+  midday_db_data:
+  midday_redis_data:
