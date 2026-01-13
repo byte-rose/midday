@@ -1,6 +1,7 @@
 import type { QueueOptions, WorkerOptions } from "bullmq";
 import { getRedisConnection } from "../config";
 import type { QueueConfig } from "../types/queue-config";
+import { getQueueConcurrency } from "../utils/concurrency";
 
 /**
  * Queue options for embeddings queue
@@ -34,7 +35,11 @@ const embeddingsQueueOptions: QueueOptions = {
  */
 const embeddingsWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 20, // Embeddings are fast, high concurrency is safe
+  concurrency: getQueueConcurrency({
+    queueName: "embeddings",
+    productionDefault: 20,
+    developmentDefault: 5,
+  }),
   lockDuration: 60000, // 1 minute - embeddings should be quick
   stalledInterval: 90000, // 1.5 minutes
   limiter: {

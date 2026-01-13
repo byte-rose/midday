@@ -24,7 +24,29 @@ redisConnection.once("ready", () => {
 /**
  * Create workers dynamically from queue configurations
  */
-const workers = queueConfigs.map((config) => {
+function getEnabledQueueNames(): Set<string> | null {
+  const raw = process.env.WORKER_ENABLED_QUEUES;
+  if (!raw) return null;
+
+  const values = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) return null;
+  return new Set(values);
+}
+
+const enabledQueueNames = getEnabledQueueNames();
+const activeQueueConfigs = enabledQueueNames
+  ? queueConfigs.filter((config) => enabledQueueNames.has(config.name))
+  : queueConfigs;
+
+if (enabledQueueNames) {
+  console.log("[Worker] Enabled queues:", Array.from(enabledQueueNames));
+}
+
+const workers = activeQueueConfigs.map((config) => {
   const worker = new Worker(
     config.name,
     async (job) => {

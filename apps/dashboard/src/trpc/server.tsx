@@ -25,7 +25,7 @@ export const trpc = createTRPCOptionsProxy<AppRouter>({
   client: createTRPCClient({
     links: [
       httpBatchLink({
-        url: `${process.env.NEXT_PUBLIC_API_URL}/trpc`,
+        url: `${process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL}/trpc`,
         transformer: superjson,
         async headers() {
           const supabase = await createClient();
@@ -112,7 +112,7 @@ export async function getTRPCClient() {
   return createTRPCClient<AppRouter>({
     links: [
       httpBatchLink({
-        url: `${process.env.NEXT_PUBLIC_API_URL}/trpc`,
+        url: `${process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL}/trpc`,
         transformer: superjson,
         headers: {
           Authorization: `Bearer ${session?.access_token}`,

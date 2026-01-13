@@ -1,6 +1,7 @@
 import type { QueueOptions, WorkerOptions } from "bullmq";
 import { getRedisConnection } from "../config";
 import type { QueueConfig } from "../types/queue-config";
+import { getQueueConcurrency } from "../utils/concurrency";
 
 /**
  * Queue options for transactions queue
@@ -31,7 +32,11 @@ const transactionsQueueOptions: QueueOptions = {
  */
 const transactionsWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 10,
+  concurrency: getQueueConcurrency({
+    queueName: "transactions",
+    productionDefault: 10,
+    developmentDefault: 2,
+  }),
   lockDuration: 300000, // 5 minutes - export jobs can be long-running
   stalledInterval: 5 * 60 * 1000, // 5 minutes - allow jobs to run longer before considering them stalled
   maxStalledCount: 1, // Only retry once if stalled

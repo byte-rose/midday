@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "../types";
+import { createBypassClient, isAuthBypassEnabled } from "./bypass";
 
 const conWarn = console.warn;
 const conLog = console.log;
@@ -37,6 +38,10 @@ type CreateClientOptions = {
 };
 
 export async function createClient(options?: CreateClientOptions) {
+  if (isAuthBypassEnabled()) {
+    return createBypassClient();
+  }
+
   const { admin = false, ...rest } = options ?? {};
   const cookieStore = await cookies();
 

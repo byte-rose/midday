@@ -39,6 +39,8 @@ Midday is an all-in-one tool designed to help freelancers, contractors, consulta
 
 We are working on the documentation to get started with Midday for local development: https://docs.midday.ai
 
+For a minimal local setup without hosted Supabase/Upstash/Vercel, see `docs/local-development.md`.
+
 ## App Architecture
 
 - Monorepo

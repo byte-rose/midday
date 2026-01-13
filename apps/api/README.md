@@ -27,8 +27,16 @@ REDIS_URL=redis://localhost:6379
 
 #### Database Configuration
 ```bash
-DATABASE_URL=postgresql://...
-DATABASE_READ_URL=postgresql://... # Optional: read replica URL
+DATABASE_PRIMARY_URL=postgresql://...
+DATABASE_FRA_URL=postgresql://... # Optional: replica URL
+DATABASE_IAD_URL=postgresql://... # Optional: replica URL
+DATABASE_SJC_URL=postgresql://... # Optional: replica URL
+
+# Worker / high-concurrency pool (BullMQ)
+DATABASE_PRIMARY_POOLER_URL=postgresql://...
+
+# Used in drizzle-kit (schema tooling)
+DATABASE_SESSION_POOLER=postgresql://...
 ```
 
 ### Development

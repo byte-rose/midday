@@ -1,6 +1,7 @@
 import type { QueueOptions, WorkerOptions } from "bullmq";
 import { getRedisConnection } from "../config";
 import type { QueueConfig } from "../types/queue-config";
+import { getQueueConcurrency } from "../utils/concurrency";
 
 /**
  * Queue options for documents queue
@@ -31,7 +32,11 @@ const documentsQueueOptions: QueueOptions = {
  */
 const documentsWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 100, // Increased from 50 for better throughput
+  concurrency: getQueueConcurrency({
+    queueName: "documents",
+    productionDefault: 100,
+    developmentDefault: 5,
+  }),
   lockDuration: 120000, // 2 minutes - jobs can take up to 60s, add buffer for safety
   limiter: {
     max: 200, // Increased from 100 for higher throughput

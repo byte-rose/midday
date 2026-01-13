@@ -1,6 +1,7 @@
 import type { QueueOptions, WorkerOptions } from "bullmq";
 import { getRedisConnection } from "../config";
 import type { QueueConfig } from "../types/queue-config";
+import { getQueueConcurrency } from "../utils/concurrency";
 
 /**
  * Queue options for inbox queue
@@ -33,7 +34,11 @@ const inboxQueueOptions: QueueOptions = {
  */
 const inboxWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 100, // Increased from 50 for better throughput
+  concurrency: getQueueConcurrency({
+    queueName: "inbox",
+    productionDefault: 100,
+    developmentDefault: 10,
+  }),
   lockDuration: 660000, // 11 minutes - document processing can take up to 10 minutes (multi-pass extraction + retries), plus buffer
   stalledInterval: 720000, // 12 minutes - longer than lockDuration to avoid false stalls
   limiter: {
@@ -78,7 +83,11 @@ const inboxProviderQueueOptions: QueueOptions = {
  */
 const inboxProviderWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 10,
+  concurrency: getQueueConcurrency({
+    queueName: "inbox-provider",
+    productionDefault: 10,
+    developmentDefault: 2,
+  }),
 };
 
 /**

@@ -1,6 +1,7 @@
 import type { QueueOptions, WorkerOptions } from "bullmq";
 import { getRedisConnection } from "../config";
 import type { QueueConfig } from "../types/queue-config";
+import { getQueueConcurrency } from "../utils/concurrency";
 
 /**
  * Queue options for rates queue
@@ -30,7 +31,11 @@ const ratesQueueOptions: QueueOptions = {
  */
 const ratesWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 1, // Only one rates scheduler job runs at a time
+  concurrency: getQueueConcurrency({
+    queueName: "rates",
+    productionDefault: 1,
+    developmentDefault: 1,
+  }),
   lockDuration: 120000, // 2 minutes - API calls and batch upserts can take time
 };
 

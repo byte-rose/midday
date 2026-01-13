@@ -20,9 +20,10 @@ import { BaseProcessor } from "../base";
 
 const BATCH_SIZE = 50;
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY!,
-});
+const GOOGLE_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+const google = GOOGLE_API_KEY
+  ? createGoogleGenerativeAI({ apiKey: GOOGLE_API_KEY })
+  : null;
 
 /**
  * Enriches transactions with AI (merchant names, categories)
@@ -35,6 +36,15 @@ export class EnrichTransactionProcessor extends BaseProcessor<EnrichTransactions
   }> {
     const { transactionIds, teamId } = job.data;
     const db = getDb();
+
+    if (!google) {
+      this.logger.warn(
+        "GOOGLE_GENERATIVE_AI_API_KEY not set; skipping transaction enrichment",
+        { teamId, transactionCount: transactionIds.length },
+      );
+      await markTransactionsAsEnriched(db, transactionIds);
+      return { enrichedCount: transactionIds.length, teamId };
+    }
 
     this.logger.info("Starting enrich-transactions job", {
       jobId: job.id,

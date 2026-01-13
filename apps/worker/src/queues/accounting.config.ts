@@ -1,6 +1,7 @@
 import type { QueueOptions, WorkerOptions } from "bullmq";
 import { getRedisConnection } from "../config";
 import type { QueueConfig } from "../types/queue-config";
+import { getQueueConcurrency } from "../utils/concurrency";
 
 /**
  * Queue options for accounting queue
@@ -41,7 +42,11 @@ const accountingQueueOptions: QueueOptions = {
  */
 const accountingWorkerOptions: WorkerOptions = {
   connection: getRedisConnection(),
-  concurrency: 10, // High parallelism - delays prevent rate limit issues
+  concurrency: getQueueConcurrency({
+    queueName: "accounting",
+    productionDefault: 10,
+    developmentDefault: 2,
+  }),
   lockDuration: 600000, // 10 minutes - allows ~2000 transactions at 250ms throttle
   stalledInterval: 10 * 60 * 1000, // 10 minutes
   maxStalledCount: 1,
