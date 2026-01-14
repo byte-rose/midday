@@ -8,6 +8,7 @@ import {
 } from "@midday/db/queries";
 import { DocumentClient } from "@midday/documents";
 import { triggerJob, triggerJobAndWait } from "@midday/job-client";
+import { publishers } from "@midday/realtime/publisher";
 import { createClient } from "@midday/supabase/job";
 import type { Job } from "bullmq";
 import convert from "heic-convert";
@@ -279,6 +280,13 @@ export class ProcessAttachmentProcessor extends BaseProcessor<ProcessAttachmentP
       }
 
       inboxData = createdData;
+
+      // Publish realtime event for inbox insert
+      if (createdData) {
+        publishers.inbox.insert(createdData, teamId).catch((err) => {
+          console.error("[Realtime] Failed to publish inbox insert:", err);
+        });
+      }
     } else if (inboxData.status === "processing") {
       this.logger.info(
         "Found existing inbox item already in processing status",
@@ -402,6 +410,11 @@ export class ProcessAttachmentProcessor extends BaseProcessor<ProcessAttachmentP
         type: result.type as "invoice" | "expense" | null | undefined,
         invoiceNumber: result.invoice_number ?? undefined,
         status: "analyzing", // Keep analyzing until matching is complete
+      });
+
+      // Publish realtime event for inbox update
+      publishers.inbox.update({ id: inboxData.id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish inbox update:", err);
       });
 
       // Group related inbox items after storing invoice number

@@ -22,6 +22,7 @@ import {
   getDocumentById,
   getDocuments,
 } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import { signedUrl } from "@midday/supabase/storage";
 import { withRequiredScope } from "../middleware";
 
@@ -248,6 +249,13 @@ app.openapi(
     const id = c.req.valid("param").id;
 
     const result = await deleteDocument(db, { teamId, id });
+
+    // Publish realtime event
+    if (result) {
+      publishers.documents.delete({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish document delete:", err);
+      });
+    }
 
     return c.json(validateResponse(result, deleteDocumentResponseSchema));
   },

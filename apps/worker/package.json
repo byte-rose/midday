@@ -26,6 +26,7 @@
     "@midday/jobs": "workspace:*",
     "@midday/logger": "workspace:*",
     "@midday/notifications": "workspace:*",
+    "@midday/realtime": "workspace:*",
     "@midday/supabase": "workspace:*",
     "@midday/utils": "workspace:*",
     "@ai-sdk/openai": "2.0.62",

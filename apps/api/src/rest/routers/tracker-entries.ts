@@ -26,6 +26,7 @@ import {
   stopTimer,
   upsertTrackerEntries,
 } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import { withRequiredScope } from "../middleware";
 
 const app = new OpenAPIHono<Context>();
@@ -109,6 +110,13 @@ app.openapi(
       ...rest,
     });
 
+    // Publish realtime events for created entries
+    for (const entry of result) {
+      publishers.tracker_entries.insert(entry, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker entry insert:", err);
+      });
+    }
+
     // Map trackerProject to project to match the response schema
     const dataWithProject = result.map((item) => ({
       ...item,
@@ -169,6 +177,13 @@ app.openapi(
       })),
     });
 
+    // Publish realtime events for created entries
+    for (const entry of result) {
+      publishers.tracker_entries.insert(entry, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker entry insert:", err);
+      });
+    }
+
     const dataWithProject = result.map((item) => ({
       ...item,
       project: item.trackerProject,
@@ -227,6 +242,13 @@ app.openapi(
       ...(assignedId !== undefined && { assignedId }),
     });
 
+    // Publish realtime events for updated entries
+    for (const entry of result) {
+      publishers.tracker_entries.update(entry, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker entry update:", err);
+      });
+    }
+
     // Map trackerProject to project to match the response schema
     const dataWithProject = result.map((item) => ({
       ...item,
@@ -272,6 +294,13 @@ app.openapi(
     const { id } = c.req.valid("param");
 
     const result = await deleteTrackerEntry(db, { teamId, id });
+
+    // Publish realtime event
+    if (result) {
+      publishers.tracker_entries.delete({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker entry delete:", err);
+      });
+    }
 
     return c.json(validateResponse(result, deleteTrackerEntrySchema));
   },

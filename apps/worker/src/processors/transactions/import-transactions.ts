@@ -3,6 +3,7 @@ import { mapTransactions } from "@midday/import/mappings";
 import { transform } from "@midday/import/transform";
 import { validateTransactions } from "@midday/import/validate";
 import { triggerJob } from "@midday/job-client";
+import { publishers } from "@midday/realtime/publisher";
 import { createClient } from "@midday/supabase/job";
 import type { Job } from "bullmq";
 import Papa from "papaparse";
@@ -162,6 +163,13 @@ export class ImportTransactionsProcessor extends BaseProcessor<ImportTransaction
                 transactions: transformedBatch,
                 teamId,
               });
+
+              // Publish realtime events for upserted transactions
+              for (const tx of upserted) {
+                publishers.transactions.insert(tx, teamId).catch((err) => {
+                  console.error("[Realtime] Failed to publish transaction insert:", err);
+                });
+              }
 
               return upserted;
             },

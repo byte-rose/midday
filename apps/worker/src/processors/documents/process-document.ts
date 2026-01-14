@@ -2,6 +2,7 @@ import { updateDocumentByPath } from "@midday/db/queries";
 import { loadDocument } from "@midday/documents/loader";
 import { getContentSample } from "@midday/documents/utils";
 import { triggerJob } from "@midday/job-client";
+import { publishers } from "@midday/realtime/publisher";
 import { createClient } from "@midday/supabase/job";
 import type { Job } from "bullmq";
 import convert from "heic-convert";
@@ -212,6 +213,11 @@ export class ProcessDocumentProcessor extends BaseProcessor<ProcessDocumentPaylo
               teamId,
               processingStatus: "failed",
             });
+
+            // Publish realtime event for document update
+            publishers.documents.update({ pathTokens: filePath, processingStatus: "failed" }, teamId).catch((err) => {
+              console.error("[Realtime] Failed to publish document update:", err);
+            });
             return;
           }
         } catch (error) {
@@ -400,6 +406,11 @@ export class ProcessDocumentProcessor extends BaseProcessor<ProcessDocumentPaylo
         pathTokens: filePath,
         teamId,
         processingStatus: "failed",
+      });
+
+      // Publish realtime event for document update
+      publishers.documents.update({ pathTokens: filePath, processingStatus: "failed" }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish document update:", err);
       });
 
       throw error;

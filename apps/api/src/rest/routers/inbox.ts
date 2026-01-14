@@ -20,6 +20,7 @@ import {
   getInboxById,
   updateInbox,
 } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import { signedUrl } from "@midday/supabase/storage";
 import { withRequiredScope } from "../middleware";
 
@@ -254,6 +255,13 @@ app.openapi(
       teamId,
     });
 
+    // Publish realtime event
+    if (result) {
+      publishers.inbox.delete({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish inbox delete:", err);
+      });
+    }
+
     return c.json(validateResponse(result, deleteInboxResponseSchema));
   },
 );
@@ -299,6 +307,13 @@ app.openapi(
     const body = c.req.valid("json");
 
     const result = await updateInbox(db, { ...body, id, teamId });
+
+    // Publish realtime event
+    if (result) {
+      publishers.inbox.update({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish inbox update:", err);
+      });
+    }
 
     return c.json(validateResponse(result, inboxItemResponseSchema));
   },

@@ -1,0 +1,19 @@
+{
+  "name": "@midday/realtime",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./publisher": "./src/publisher.ts",
+    "./subscriber": "./src/subscriber.ts",
+    "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "redis": "^5.10.0",
+    "@midday/cache": "workspace:*"
+  },
+  "devDependencies": {
+    "@midday/tsconfig": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}

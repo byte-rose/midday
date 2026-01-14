@@ -14,6 +14,7 @@
     "@supabase/postgrest-js": "^2.87.0",
     "@supabase/ssr": "^0.8.0",
     "date-fns": "^4.1.0",
+    "minio": "^8.0.5",
     "react": "19.2.3",
     "server-only": "^0.0.1",
     "supabase": "^2.65.6"
@@ -31,6 +32,7 @@
     "./queries": "./src/queries/index.ts",
     "./cached-queries": "./src/queries/cached-queries.ts",
     "./storage": "./src/utils/storage.ts",
+    "./storage-adapter": "./src/storage/index.ts",
     "./types": "./src/types/index.ts"
   }
 }

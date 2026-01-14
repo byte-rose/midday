@@ -15,6 +15,7 @@ import {
   getTrackerProjects,
   upsertTrackerProject,
 } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import { withRequiredScope } from "../middleware";
 
 const app = new OpenAPIHono<Context>();
@@ -106,6 +107,13 @@ app.openapi(
       ...c.req.valid("json"),
     });
 
+    // Publish realtime event
+    if (result) {
+      publishers.tracker_projects.insert(result, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker project insert:", err);
+      });
+    }
+
     return c.json(validateResponse(result, trackerProjectResponseSchema));
   },
 );
@@ -153,6 +161,13 @@ app.openapi(
       userId,
       ...c.req.valid("json"),
     });
+
+    // Publish realtime event
+    if (result) {
+      publishers.tracker_projects.update({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker project update:", err);
+      });
+    }
 
     return c.json(validateResponse(result, trackerProjectResponseSchema));
   },
@@ -231,6 +246,13 @@ app.openapi(
       teamId,
       id,
     });
+
+    // Publish realtime event
+    if (result) {
+      publishers.tracker_projects.delete({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish tracker project delete:", err);
+      });
+    }
 
     return c.json(validateResponse(result, deleteTrackerProjectSchema));
   },

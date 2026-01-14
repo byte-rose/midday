@@ -1,4 +1,5 @@
 import { calculateInboxSuggestions, hasSuggestion } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import type { Job } from "bullmq";
 import {
   type BatchProcessMatchingPayload,
@@ -70,6 +71,10 @@ export class BatchProcessMatchingProcessor extends BaseProcessor<BatchProcessMat
                   transactionId: result.suggestion!.transactionId,
                   confidence: result.suggestion!.confidenceScore,
                 });
+                // Publish realtime event for inbox update (auto-matched)
+                publishers.inbox.update({ id: inboxId, status: "matched", ...result }, teamId).catch((err) => {
+                  console.error("[Realtime] Failed to publish inbox update:", err);
+                });
                 break;
 
               case "suggestion_created":
@@ -81,10 +86,18 @@ export class BatchProcessMatchingProcessor extends BaseProcessor<BatchProcessMat
                   transactionId: result.suggestion!.transactionId,
                   confidence: result.suggestion!.confidenceScore,
                 });
+                // Publish realtime event for inbox update (suggestion created)
+                publishers.inbox.update({ id: inboxId, status: "pending", ...result }, teamId).catch((err) => {
+                  console.error("[Realtime] Failed to publish inbox update:", err);
+                });
                 break;
 
               case "no_match_yet":
                 noMatchCount++;
+                // Publish realtime event for inbox update (no match)
+                publishers.inbox.update({ id: inboxId, status: "pending" }, teamId).catch((err) => {
+                  console.error("[Realtime] Failed to publish inbox update:", err);
+                });
                 break;
             }
 

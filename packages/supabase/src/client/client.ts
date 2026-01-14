@@ -2,6 +2,8 @@ import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "../types";
 import { createBypassClient, isAuthBypassEnabled } from "./bypass";
 
+export { isAuthBypassEnabled };
+
 export const createClient = () => {
   if (isAuthBypassEnabled()) {
     return createBypassClient();

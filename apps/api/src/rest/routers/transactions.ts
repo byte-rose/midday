@@ -30,6 +30,7 @@ import {
   updateTransaction,
   updateTransactions,
 } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import { signedUrl } from "@midday/supabase/storage";
 import { withRequiredScope } from "../middleware";
 
@@ -261,6 +262,13 @@ app.openapi(
 
     const result = await createTransaction(db, { teamId, ...params });
 
+    // Publish realtime event
+    if (result) {
+      publishers.transactions.insert(result, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish transaction insert:", err);
+      });
+    }
+
     return c.json(validateResponse(result, transactionResponseSchema));
   },
 );
@@ -311,6 +319,13 @@ app.openapi(
       ...params,
     });
 
+    // Publish realtime event
+    if (result) {
+      publishers.transactions.update({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish transaction update:", err);
+      });
+    }
+
     return c.json(validateResponse(result, transactionResponseSchema));
   },
 );
@@ -357,6 +372,15 @@ app.openapi(
       userId,
       ...params,
     });
+
+    // Publish realtime events for each updated transaction
+    if (result?.data) {
+      for (const tx of result.data) {
+        publishers.transactions.update(tx, teamId).catch((err) => {
+          console.error("[Realtime] Failed to publish transaction update:", err);
+        });
+      }
+    }
 
     return c.json(validateResponse(result, transactionsResponseSchema));
   },
@@ -446,6 +470,15 @@ app.openapi(
       ids: params,
     });
 
+    // Publish realtime events for each deleted transaction
+    if (result) {
+      for (const tx of result) {
+        publishers.transactions.delete(tx, teamId).catch((err) => {
+          console.error("[Realtime] Failed to publish transaction delete:", err);
+        });
+      }
+    }
+
     return c.json(validateResponse(result, deleteTransactionsResponseSchema));
   },
 );
@@ -481,6 +514,13 @@ app.openapi(
     const { id } = c.req.valid("param");
 
     const [result] = await deleteTransactions(db, { teamId, ids: [id] });
+
+    // Publish realtime event
+    if (result) {
+      publishers.transactions.delete({ id, ...result }, teamId).catch((err) => {
+        console.error("[Realtime] Failed to publish transaction delete:", err);
+      });
+    }
 
     return c.json(validateResponse(result, deleteTransactionResponseSchema));
   },

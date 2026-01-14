@@ -5,6 +5,7 @@ import {
   markTransactionsAsEnriched,
   updateTransactionEnrichments,
 } from "@midday/db/queries";
+import { publishers } from "@midday/realtime/publisher";
 import { generateObject } from "ai";
 import type { Job } from "bullmq";
 import type { EnrichTransactionsPayload } from "../../schemas/transactions";
@@ -150,6 +151,13 @@ export class EnrichTransactionProcessor extends BaseProcessor<EnrichTransactions
           if (updates.length > 0) {
             await updateTransactionEnrichments(db, updates);
             batchEnrichedCount += updates.length;
+
+            // Publish realtime events for enriched transactions
+            for (const update of updates) {
+              publishers.transactions.update({ id: update.transactionId, ...update.data }, teamId).catch((err) => {
+                console.error("[Realtime] Failed to publish transaction update:", err);
+              });
+            }
           }
 
           // Mark transactions that don't need updates as enriched

@@ -10,6 +10,7 @@ import { inboxRouter } from "./inbox";
 import { invoicesRouter } from "./invoices";
 import { notificationsRouter } from "./notifications";
 import oauthRouter from "./oauth";
+import { realtimeRouter } from "./realtime";
 import { reportsRouter } from "./reports";
 import { searchRouter } from "./search";
 import { tagsRouter } from "./tags";
@@ -28,6 +29,7 @@ routers.route("/oauth", oauthRouter);
 routers.route("/webhook", webhookRouter);
 routers.route("/files", filesRouter);
 routers.route("/apps", appsRouter);
+routers.route("/realtime", realtimeRouter);
 
 // Apply protected middleware to all subsequent routes
 routers.use(...protectedMiddleware);

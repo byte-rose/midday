@@ -1,3 +1,5 @@
+import { useMinioStorage, getStorageAdapter } from "../storage";
+
 type BypassConfig = {
   token?: string;
   userId?: string;
@@ -74,22 +76,56 @@ export function createBypassClient(config?: BypassConfig) {
     return ch;
   };
 
-  const storage = {
-    from() {
-      const err = { message: "Storage is disabled in auth bypass mode" };
-      return {
-        async upload() {
-          return { data: null, error: err };
-        },
-        async download() {
-          return { data: null, error: err };
-        },
-        async createSignedUrl() {
-          return { data: null, error: err };
-        },
-      };
-    },
-  };
+  // Use MinIO storage adapter if configured, otherwise stub
+  let storage: any;
+  if (useMinioStorage()) {
+    const adapter = getStorageAdapter();
+    storage = {
+      from(bucket: string) {
+        const bucket_adapter = adapter.from(bucket);
+        return {
+          async upload(path: string, file: File | Blob | Buffer, options?: any) {
+            return bucket_adapter.upload(path, file, options);
+          },
+          async download(path: string) {
+            return bucket_adapter.download(path);
+          },
+          async createSignedUrl(path: string, expiresIn: number, options?: any) {
+            return bucket_adapter.createSignedUrl(path, expiresIn, options);
+          },
+          async remove(paths: string[]) {
+            return bucket_adapter.remove(paths);
+          },
+          getPublicUrl(path: string) {
+            return bucket_adapter.getPublicUrl(path);
+          },
+        };
+      },
+    };
+  } else {
+    storage = {
+      from() {
+        const err = { message: "Storage is disabled in auth bypass mode. Configure MinIO to enable storage." };
+        return {
+          async upload() {
+            return { data: null, error: err };
+          },
+          async download() {
+            return { data: null, error: err };
+          },
+          async createSignedUrl() {
+            return { data: null, error: err };
+          },
+          async remove() {
+            return { data: null, error: err };
+          },
+          getPublicUrl() {
+            return { data: { publicUrl: "" } };
+          },
+        };
+      },
+    };
+  }
 
   const client: any = {
     auth,
