@@ -63,14 +63,15 @@ services:
       DATABASE_SESSION_POOLER: postgresql://midday:midday@db:5432/midday
       # REDIS_URL: redis://redis:6379
       REDIS_QUEUE_URL: redis://redis:6379
-      ALLOWED_API_ORIGINS: http://localhost:3001
-      MIDDAY_DASHBOARD_URL: http://localhost:3001
+      # Production domains (Coolify)
+      ALLOWED_API_ORIGINS: http://midday.bastco.org,https://midday.bastco.org,http://localhost:3001
+      MIDDAY_DASHBOARD_URL: https://midday.bastco.org
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_PUBLIC_URL: https://minio.bastco.org
     command: ["bash", "-lc", "cd apps/api && bun run dev"]
     healthcheck:
       test:
@@ -97,10 +98,11 @@ services:
     env_file:
       - ./apps/dashboard/.env.docker
     environment:
-      NEXT_PUBLIC_URL: http://localhost:3001
-      NEXT_PUBLIC_API_URL: http://localhost:3003
+      # Production domains (Coolify)
+      NEXT_PUBLIC_URL: https://midday.bastco.org
+      NEXT_PUBLIC_API_URL: https://middayapi.bastco.org
       API_INTERNAL_URL: http://api:3003
-      NEXT_PUBLIC_MINIO_URL: http://localhost:9000
+      NEXT_PUBLIC_MINIO_URL: https://minio.bastco.org
     command: ["bash", "-lc", "cd apps/dashboard && bun run dev -- -H 0.0.0.0"]
 
   worker:
@@ -131,7 +133,8 @@ services:
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_PUBLIC_URL: http://localhost:9000
+      # Production domains (Coolify)
+      MINIO_PUBLIC_URL: https://minio.bastco.org
     command: ["bash", "-lc", "cd apps/worker && bun run dev"]
 
   minio:
