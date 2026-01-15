@@ -1,3 +1,5 @@
+import "server-only";
+
 import { Client as MinioClient } from "minio";
 
 let minioClient: MinioClient | null = null;

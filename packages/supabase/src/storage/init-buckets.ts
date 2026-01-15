@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * Initialize required buckets in MinIO
  * Call this on application startup to ensure buckets exist

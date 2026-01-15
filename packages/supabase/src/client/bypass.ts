@@ -12,6 +12,10 @@ export function isAuthBypassEnabled() {
 }
 
 function useMinioStorage(): boolean {
+  // Only check on server, never on client
+  if (typeof window !== "undefined") {
+    return false;
+  }
   return (
     process.env.USE_MINIO === "true" ||
     process.env.MINIO_ENDPOINT !== undefined
@@ -82,64 +86,29 @@ export function createBypassClient(config?: BypassConfig) {
   };
 
   // Use MinIO storage adapter if configured, otherwise stub
-  // Lazy-load storage to avoid edge runtime issues
-  let storage: any;
-  if (useMinioStorage()) {
-    storage = {
-      from(bucket: string) {
-        return {
-          async upload(path: string, file: File | Blob | Buffer, options?: any) {
-            const { getStorageAdapter } = await import("../storage");
-            const adapter = await getStorageAdapter();
-            return adapter.from(bucket).upload(path, file, options);
-          },
-          async download(path: string) {
-            const { getStorageAdapter } = await import("../storage");
-            const adapter = await getStorageAdapter();
-            return adapter.from(bucket).download(path);
-          },
-          async createSignedUrl(path: string, expiresIn: number, options?: any) {
-            const { getStorageAdapter } = await import("../storage");
-            const adapter = await getStorageAdapter();
-            return adapter.from(bucket).createSignedUrl(path, expiresIn, options);
-          },
-          async remove(paths: string[]) {
-            const { getStorageAdapter } = await import("../storage");
-            const adapter = await getStorageAdapter();
-            return adapter.from(bucket).remove(paths);
-          },
-          getPublicUrl(path: string) {
-            // This is synchronous so we can't lazy-load
-            const err = { message: "Storage operations not available in edge runtime" };
-            return { data: null, error: err };
-          },
-        };
-      },
-    };
-  } else {
-    storage = {
-      from() {
-        const err = { message: "Storage is disabled in auth bypass mode. Configure MinIO to enable storage." };
-        return {
-          async upload() {
-            return { data: null, error: err };
-          },
-          async download() {
-            return { data: null, error: err };
-          },
-          async createSignedUrl() {
-            return { data: null, error: err };
-          },
-          async remove() {
-            return { data: null, error: err };
-          },
-          getPublicUrl() {
-            return { data: { publicUrl: "" } };
-          },
-        };
-      },
-    };
-  }
+  // Storage is only available on server-side contexts
+  const storage = {
+    from() {
+      const err = { message: "Storage is disabled in bypass mode" };
+      return {
+        async upload() {
+          return { data: null, error: err };
+        },
+        async download() {
+          return { data: null, error: err };
+        },
+        async createSignedUrl() {
+          return { data: null, error: err };
+        },
+        async remove() {
+          return { data: null, error: err };
+        },
+        getPublicUrl() {
+          return { data: { publicUrl: "" } };
+        },
+      };
+    },
+  };
 
   const client: any = {
     auth,
