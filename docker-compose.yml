@@ -51,8 +51,6 @@ services:
         condition: service_healthy
     ports:
       - "13003:3003"
-    env_file:
-      - ./apps/api/.env.docker
     environment:
       PORT: "3003"
       DATABASE_PRIMARY_URL: postgresql://midday:midday@db:5432/midday
@@ -95,8 +93,6 @@ services:
         condition: service_healthy
     ports:
       - "13001:3001"
-    env_file:
-      - ./apps/dashboard/.env.docker
     environment:
       # Production domains (Coolify)
       NEXT_PUBLIC_URL: https://midday.bastco.org
@@ -121,8 +117,6 @@ services:
         condition: service_healthy
     ports:
       - "18080:8080"
-    env_file:
-      - ./apps/worker/.env.docker
     environment:
       PORT: "8080"
       WORKER_ENV: development
