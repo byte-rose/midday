@@ -90,22 +90,22 @@ export function createBypassClient(config?: BypassConfig) {
         return {
           async upload(path: string, file: File | Blob | Buffer, options?: any) {
             const { getStorageAdapter } = await import("../storage");
-            const adapter = getStorageAdapter();
+            const adapter = await getStorageAdapter();
             return adapter.from(bucket).upload(path, file, options);
           },
           async download(path: string) {
             const { getStorageAdapter } = await import("../storage");
-            const adapter = getStorageAdapter();
+            const adapter = await getStorageAdapter();
             return adapter.from(bucket).download(path);
           },
           async createSignedUrl(path: string, expiresIn: number, options?: any) {
             const { getStorageAdapter } = await import("../storage");
-            const adapter = getStorageAdapter();
+            const adapter = await getStorageAdapter();
             return adapter.from(bucket).createSignedUrl(path, expiresIn, options);
           },
           async remove(paths: string[]) {
             const { getStorageAdapter } = await import("../storage");
-            const adapter = getStorageAdapter();
+            const adapter = await getStorageAdapter();
             return adapter.from(bucket).remove(paths);
           },
           getPublicUrl(path: string) {

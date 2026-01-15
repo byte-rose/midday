@@ -9,11 +9,34 @@ export type {
   StoragePublicUrlResult,
 } from "./types";
 
-export { getMinioClient, getMinioPublicUrl, BUCKETS, type BucketName } from "./minio-client";
-export { createMinioAdapter } from "./minio-adapter";
-export { initBuckets } from "./init-buckets";
+export type { BucketName } from "./minio-client";
 
-import { createMinioAdapter } from "./minio-adapter";
+// Lazy-load these to avoid loading minio client in edge runtime
+export async function getMinioClient() {
+  const { getMinioClient: getClient } = await import("./minio-client");
+  return getClient();
+}
+
+export async function getMinioPublicUrl(bucket: string, filePath: string) {
+  const { getMinioPublicUrl: getUrl } = await import("./minio-client");
+  return getUrl(bucket, filePath);
+}
+
+export async function getBuckets() {
+  const { BUCKETS } = await import("./minio-client");
+  return BUCKETS;
+}
+
+export async function createMinioAdapter() {
+  const { createMinioAdapter: createAdapter } = await import("./minio-adapter");
+  return createAdapter();
+}
+
+export async function initBuckets() {
+  const { initBuckets: init } = await import("./init-buckets");
+  return init();
+}
+
 import type { StorageAdapter } from "./types";
 
 let storageAdapter: StorageAdapter | null = null;
@@ -33,7 +56,7 @@ export function useMinioStorage(): boolean {
  * Uses MinIO if configured, otherwise throws
  * (Supabase storage requires passing the Supabase client)
  */
-export function getStorageAdapter(): StorageAdapter {
+export async function getStorageAdapter(): Promise<StorageAdapter> {
   if (storageAdapter) {
     return storageAdapter;
   }
@@ -44,6 +67,7 @@ export function getStorageAdapter(): StorageAdapter {
     );
   }
 
-  storageAdapter = createMinioAdapter();
+  const { createMinioAdapter: createAdapter } = await import("./minio-adapter");
+  storageAdapter = createAdapter();
   return storageAdapter;
 }
