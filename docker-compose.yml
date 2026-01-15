@@ -70,7 +70,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_PUBLIC_URL: https://minio.bastco.org
-    command: ["bash", "-lc", "cd apps/api && bun run dev"]
+    command: ["bash", "-lc", "cd apps/api && bun src/index.ts"]
     healthcheck:
       test:
         [
@@ -99,7 +99,7 @@ services:
       NEXT_PUBLIC_API_URL: https://middayapi.bastco.org
       API_INTERNAL_URL: http://api:3003
       NEXT_PUBLIC_MINIO_URL: https://minio.bastco.org
-    command: ["bash", "-lc", "cd apps/dashboard && bun run dev -- -H 0.0.0.0"]
+    command: ["bash", "-lc", "cd apps/dashboard && bun run build && bun run start"]
 
   worker:
     build:
@@ -129,7 +129,7 @@ services:
       MINIO_SECRET_KEY: minioadmin
       # Production domains (Coolify)
       MINIO_PUBLIC_URL: https://minio.bastco.org
-    command: ["bash", "-lc", "cd apps/worker && bun run dev"]
+    command: ["bash", "-lc", "cd apps/worker && bun run start"]
 
   minio:
     image: minio/minio:latest
