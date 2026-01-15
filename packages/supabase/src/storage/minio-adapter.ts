@@ -8,7 +8,6 @@ import type {
   StorageRemoveResult,
   StoragePublicUrlResult,
 } from "./types";
-import { getMinioClient, getMinioPublicUrl } from "./minio-client";
 
 /**
  * MinIO bucket implementation compatible with Supabase Storage API
@@ -26,6 +25,7 @@ class MinioBucket implements StorageBucket {
     options?: StorageUploadOptions
   ): Promise<StorageUploadResult> {
     try {
+      const { getMinioClient } = await import("./minio-client");
       const client = getMinioClient();
 
       // Convert file to buffer
@@ -67,6 +67,7 @@ class MinioBucket implements StorageBucket {
 
   async download(path: string): Promise<StorageDownloadResult> {
     try {
+      const { getMinioClient } = await import("./minio-client");
       const client = getMinioClient();
       const stream = await client.getObject(this.bucketName, path);
 
@@ -99,6 +100,7 @@ class MinioBucket implements StorageBucket {
     options?: { download?: boolean }
   ): Promise<StorageSignedUrlResult> {
     try {
+      const { getMinioClient } = await import("./minio-client");
       const client = getMinioClient();
 
       // MinIO presignedGetObject expects expiry in seconds
@@ -131,6 +133,7 @@ class MinioBucket implements StorageBucket {
 
   async remove(paths: string[]): Promise<StorageRemoveResult> {
     try {
+      const { getMinioClient } = await import("./minio-client");
       const client = getMinioClient();
 
       // MinIO removeObjects expects objects with name property
@@ -166,7 +169,8 @@ class MinioBucket implements StorageBucket {
     }
   }
 
-  getPublicUrl(path: string): StoragePublicUrlResult {
+  async getPublicUrl(path: string): Promise<StoragePublicUrlResult> {
+    const { getMinioPublicUrl } = await import("./minio-client");
     const baseUrl = getMinioPublicUrl();
     const publicUrl = `${baseUrl}/${this.bucketName}/${path}`;
 

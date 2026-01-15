@@ -9,7 +9,7 @@ export type {
   StoragePublicUrlResult,
 } from "./types";
 
-export type { BucketName } from "./minio-client";
+export type BucketName = string;
 
 // Lazy-load these to avoid loading minio client in edge runtime
 export async function getMinioClient() {

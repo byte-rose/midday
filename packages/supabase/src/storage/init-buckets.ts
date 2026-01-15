@@ -1,10 +1,9 @@
-import { getMinioClient, BUCKETS } from "./minio-client";
-
 /**
  * Initialize required buckets in MinIO
  * Call this on application startup to ensure buckets exist
  */
 export async function initBuckets(): Promise<void> {
+  const { getMinioClient, BUCKETS } = await import("./minio-client");
   const client = getMinioClient();
 
   const bucketsToCreate = Object.values(BUCKETS);
