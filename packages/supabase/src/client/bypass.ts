@@ -1,5 +1,3 @@
-import { useMinioStorage, getStorageAdapter } from "../storage";
-
 type BypassConfig = {
   token?: string;
   userId?: string;
@@ -10,6 +8,13 @@ export function isAuthBypassEnabled() {
   return (
     process.env.NEXT_PUBLIC_AUTH_BYPASS === "true" ||
     process.env.AUTH_BYPASS === "true"
+  );
+}
+
+function useMinioStorage(): boolean {
+  return (
+    process.env.USE_MINIO === "true" ||
+    process.env.MINIO_ENDPOINT !== undefined
   );
 }
 
@@ -77,27 +82,36 @@ export function createBypassClient(config?: BypassConfig) {
   };
 
   // Use MinIO storage adapter if configured, otherwise stub
+  // Lazy-load storage to avoid edge runtime issues
   let storage: any;
   if (useMinioStorage()) {
-    const adapter = getStorageAdapter();
     storage = {
       from(bucket: string) {
-        const bucket_adapter = adapter.from(bucket);
         return {
           async upload(path: string, file: File | Blob | Buffer, options?: any) {
-            return bucket_adapter.upload(path, file, options);
+            const { getStorageAdapter } = await import("../storage");
+            const adapter = getStorageAdapter();
+            return adapter.from(bucket).upload(path, file, options);
           },
           async download(path: string) {
-            return bucket_adapter.download(path);
+            const { getStorageAdapter } = await import("../storage");
+            const adapter = getStorageAdapter();
+            return adapter.from(bucket).download(path);
           },
           async createSignedUrl(path: string, expiresIn: number, options?: any) {
-            return bucket_adapter.createSignedUrl(path, expiresIn, options);
+            const { getStorageAdapter } = await import("../storage");
+            const adapter = getStorageAdapter();
+            return adapter.from(bucket).createSignedUrl(path, expiresIn, options);
           },
           async remove(paths: string[]) {
-            return bucket_adapter.remove(paths);
+            const { getStorageAdapter } = await import("../storage");
+            const adapter = getStorageAdapter();
+            return adapter.from(bucket).remove(paths);
           },
           getPublicUrl(path: string) {
-            return bucket_adapter.getPublicUrl(path);
+            // This is synchronous so we can't lazy-load
+            const err = { message: "Storage operations not available in edge runtime" };
+            return { data: null, error: err };
           },
         };
       },
