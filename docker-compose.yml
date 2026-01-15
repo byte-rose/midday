@@ -61,7 +61,7 @@ services:
       DATABASE_IAD_URL: postgresql://midday:midday@db:5432/midday
       DATABASE_PRIMARY_POOLER_URL: postgresql://midday:midday@db:5432/midday
       DATABASE_SESSION_POOLER: postgresql://midday:midday@db:5432/midday
-      # REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://redis:6379
       REDIS_QUEUE_URL: redis://redis:6379
       # Production domains (Coolify)
       ALLOWED_API_ORIGINS: http://midday.bastco.org,https://midday.bastco.org,http://localhost:3001
