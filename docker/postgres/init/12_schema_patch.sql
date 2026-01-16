@@ -43,12 +43,30 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'accounting_provider') THEN
+    CREATE TYPE public.accounting_provider AS ENUM ('xero', 'quickbooks', 'fortnox');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'accounting_sync_status') THEN
+    CREATE TYPE public.accounting_sync_status AS ENUM ('synced', 'failed', 'pending', 'partial');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'accounting_sync_type') THEN
+    CREATE TYPE public.accounting_sync_type AS ENUM ('auto', 'manual');
+  END IF;
+END $$;
+
 ALTER TYPE "public"."transactionStatus" ADD VALUE IF NOT EXISTS 'exported';
 
 ALTER TABLE public.transactions
   ADD COLUMN IF NOT EXISTS tax_rate numeric,
   ADD COLUMN IF NOT EXISTS tax_amount numeric,
-  ADD COLUMN IF NOT EXISTS tax_type text;
+  ADD COLUMN IF NOT EXISTS tax_type text,
+  ADD COLUMN IF NOT EXISTS counterparty_name text,
+  ADD COLUMN IF NOT EXISTS merchant_name text,
+  ADD COLUMN IF NOT EXISTS enrichment_completed boolean DEFAULT false;
 
 ALTER TABLE public.transaction_categories
   ADD COLUMN IF NOT EXISTS tax_rate numeric,
@@ -142,6 +160,177 @@ CREATE INDEX IF NOT EXISTS activities_metadata_gin_idx
 CREATE INDEX IF NOT EXISTS activities_group_id_idx ON public.activities (group_id);
 CREATE INDEX IF NOT EXISTS activities_insights_group_idx
   ON public.activities (team_id, group_id, type, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.oauth_applications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  name text NOT NULL,
+  slug text NOT NULL,
+  description text,
+  overview text,
+  developer_name text,
+  logo_url text,
+  website text,
+  install_url text,
+  screenshots text[] DEFAULT '{}'::text[],
+  redirect_uris text[] NOT NULL,
+  client_id text NOT NULL,
+  client_secret text NOT NULL,
+  scopes text[] DEFAULT '{}'::text[] NOT NULL,
+  team_id uuid NOT NULL,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  is_public boolean DEFAULT false,
+  active boolean DEFAULT true,
+  status text DEFAULT 'draft'
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_applications_team_id_fkey') THEN
+    ALTER TABLE public.oauth_applications
+      ADD CONSTRAINT oauth_applications_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_applications_created_by_fkey') THEN
+    ALTER TABLE public.oauth_applications
+      ADD CONSTRAINT oauth_applications_created_by_fkey
+      FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE cascade;
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS oauth_applications_slug_key ON public.oauth_applications (slug);
+CREATE UNIQUE INDEX IF NOT EXISTS oauth_applications_client_id_key ON public.oauth_applications (client_id);
+CREATE INDEX IF NOT EXISTS oauth_applications_team_id_idx ON public.oauth_applications (team_id);
+CREATE INDEX IF NOT EXISTS oauth_applications_client_id_idx ON public.oauth_applications (client_id);
+CREATE INDEX IF NOT EXISTS oauth_applications_slug_idx ON public.oauth_applications (slug);
+
+CREATE TABLE IF NOT EXISTS public.oauth_authorization_codes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  code text NOT NULL,
+  application_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  scopes text[] NOT NULL,
+  redirect_uri text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  used boolean DEFAULT false,
+  code_challenge text,
+  code_challenge_method text
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_authorization_codes_application_id_fkey') THEN
+    ALTER TABLE public.oauth_authorization_codes
+      ADD CONSTRAINT oauth_authorization_codes_application_id_fkey
+      FOREIGN KEY (application_id) REFERENCES public.oauth_applications(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_authorization_codes_user_id_fkey') THEN
+    ALTER TABLE public.oauth_authorization_codes
+      ADD CONSTRAINT oauth_authorization_codes_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_authorization_codes_team_id_fkey') THEN
+    ALTER TABLE public.oauth_authorization_codes
+      ADD CONSTRAINT oauth_authorization_codes_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE cascade;
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS oauth_authorization_codes_code_key ON public.oauth_authorization_codes (code);
+CREATE INDEX IF NOT EXISTS oauth_authorization_codes_code_idx ON public.oauth_authorization_codes (code);
+CREATE INDEX IF NOT EXISTS oauth_authorization_codes_application_id_idx ON public.oauth_authorization_codes (application_id);
+CREATE INDEX IF NOT EXISTS oauth_authorization_codes_user_id_idx ON public.oauth_authorization_codes (user_id);
+
+CREATE TABLE IF NOT EXISTS public.oauth_access_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  token text NOT NULL,
+  refresh_token text,
+  application_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  scopes text[] NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  refresh_token_expires_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  last_used_at timestamp with time zone,
+  revoked boolean DEFAULT false,
+  revoked_at timestamp with time zone
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_access_tokens_application_id_fkey') THEN
+    ALTER TABLE public.oauth_access_tokens
+      ADD CONSTRAINT oauth_access_tokens_application_id_fkey
+      FOREIGN KEY (application_id) REFERENCES public.oauth_applications(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_access_tokens_user_id_fkey') THEN
+    ALTER TABLE public.oauth_access_tokens
+      ADD CONSTRAINT oauth_access_tokens_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'oauth_access_tokens_team_id_fkey') THEN
+    ALTER TABLE public.oauth_access_tokens
+      ADD CONSTRAINT oauth_access_tokens_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE cascade;
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS oauth_access_tokens_token_key ON public.oauth_access_tokens (token);
+CREATE UNIQUE INDEX IF NOT EXISTS oauth_access_tokens_refresh_token_key ON public.oauth_access_tokens (refresh_token);
+CREATE INDEX IF NOT EXISTS oauth_access_tokens_token_idx ON public.oauth_access_tokens (token);
+CREATE INDEX IF NOT EXISTS oauth_access_tokens_refresh_token_idx ON public.oauth_access_tokens (refresh_token);
+CREATE INDEX IF NOT EXISTS oauth_access_tokens_application_id_idx ON public.oauth_access_tokens (application_id);
+CREATE INDEX IF NOT EXISTS oauth_access_tokens_user_id_idx ON public.oauth_access_tokens (user_id);
+
+CREATE TABLE IF NOT EXISTS public.accounting_sync_records (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  transaction_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  provider public.accounting_provider NOT NULL,
+  provider_tenant_id text NOT NULL,
+  provider_transaction_id text,
+  synced_attachment_mapping jsonb DEFAULT '{}'::jsonb NOT NULL,
+  synced_at timestamp with time zone DEFAULT now() NOT NULL,
+  sync_type public.accounting_sync_type,
+  status public.accounting_sync_status DEFAULT 'synced' NOT NULL,
+  error_message text,
+  error_code text,
+  provider_entity_type text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'accounting_sync_records_transaction_id_fkey') THEN
+    ALTER TABLE public.accounting_sync_records
+      ADD CONSTRAINT accounting_sync_records_transaction_id_fkey
+      FOREIGN KEY (transaction_id) REFERENCES public.transactions(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'accounting_sync_records_team_id_fkey') THEN
+    ALTER TABLE public.accounting_sync_records
+      ADD CONSTRAINT accounting_sync_records_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE cascade;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_accounting_sync_transaction
+  ON public.accounting_sync_records (transaction_id);
+CREATE INDEX IF NOT EXISTS idx_accounting_sync_team_provider
+  ON public.accounting_sync_records (team_id, provider);
+CREATE INDEX IF NOT EXISTS idx_accounting_sync_status
+  ON public.accounting_sync_records (team_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS accounting_sync_records_transaction_provider_key
+  ON public.accounting_sync_records (transaction_id, provider);
 
 CREATE OR REPLACE FUNCTION public.get_bank_account_currencies(team_id uuid)
 RETURNS TABLE (currency text)
