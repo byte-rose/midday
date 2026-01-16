@@ -11,7 +11,7 @@ CREATE TYPE "public"."inbox_status" AS ENUM('processing', 'pending', 'archived',
 CREATE TYPE "public"."inbox_type" AS ENUM('invoice', 'expense');--> statement-breakpoint
 CREATE TYPE "public"."invoice_delivery_type" AS ENUM('create', 'create_and_send', 'scheduled');--> statement-breakpoint
 CREATE TYPE "public"."invoice_size" AS ENUM('a4', 'letter');--> statement-breakpoint
-CREATE TYPE "public"."invoice_status" AS ENUM('draft', 'overdue', 'paid', 'unpaid', 'canceled');--> statement-breakpoint
+CREATE TYPE "public"."invoice_status" AS ENUM('draft', 'overdue', 'paid', 'unpaid', 'canceled', 'scheduled');--> statement-breakpoint
 CREATE TYPE "public"."plans" AS ENUM('trial', 'starter', 'pro');--> statement-breakpoint
 CREATE TYPE "public"."reportTypes" AS ENUM('profit', 'revenue', 'burn_rate', 'expense');--> statement-breakpoint
 CREATE TYPE "public"."teamRoles" AS ENUM('owner', 'member');--> statement-breakpoint
@@ -172,6 +172,7 @@ CREATE TABLE "customers" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
+	"billing_email" text,
 	"country" text,
 	"address_line_1" text,
 	"address_line_2" text,
@@ -326,10 +327,13 @@ CREATE TABLE "teams" (
 	"inbox_email" text,
 	"inbox_forwarding" boolean DEFAULT true,
 	"base_currency" text,
+	"country_code" text,
+	"fiscal_year_start_month" smallint,
 	"document_classification" boolean DEFAULT false,
 	"flags" text[],
 	"canceled_at" timestamp with time zone,
 	"plan" "plans" DEFAULT 'trial' NOT NULL,
+	"export_settings" jsonb,
 	CONSTRAINT "teams_inbox_id_key" UNIQUE("inbox_id")
 );
 --> statement-breakpoint
@@ -392,6 +396,7 @@ CREATE TABLE "invoice_templates" (
 	"currency" text,
 	"payment_details" jsonb,
 	"from_details" jsonb,
+	"note_details" jsonb,
 	"size" "invoice_size" DEFAULT 'a4',
 	"date_format" text,
 	"include_vat" boolean,
@@ -408,6 +413,7 @@ CREATE TABLE "invoice_templates" (
 	"include_units" boolean,
 	"subtotal_label" text,
 	"include_pdf" boolean,
+	"send_copy" boolean,
 	CONSTRAINT "invoice_templates_team_id_key" UNIQUE("team_id")
 );
 --> statement-breakpoint
@@ -433,6 +439,7 @@ CREATE TABLE "users" (
 	"locale" text DEFAULT 'en',
 	"week_starts_on_monday" boolean DEFAULT false,
 	"timezone" text,
+	"timezone_auto_sync" boolean DEFAULT true,
 	"time_format" numeric DEFAULT '24',
 	"date_format" text
 );

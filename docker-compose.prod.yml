@@ -1,0 +1,143 @@
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    container_name: midday-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-midday}
+      POSTGRES_USER: ${POSTGRES_USER:-midday}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-midday}
+    volumes:
+      - midday_db_data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./apps/api/migrations/0000_bumpy_chat.sql:/docker-entrypoint-initdb.d/99_schema_source.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-midday} -d ${POSTGRES_DB:-midday}",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: midday-redis
+    restart: unless-stopped
+    volumes:
+      - midday_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    image: minio/minio:latest
+    container_name: midday-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: midday-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-3003}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_PRIMARY_URL: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      DATABASE_FRA_URL: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      DATABASE_SJC_URL: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      DATABASE_IAD_URL: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      DATABASE_PRIMARY_POOLER_URL: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      DATABASE_SESSION_POOLER: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      REDIS_URL: redis://redis:6379
+      REDIS_QUEUE_URL: redis://redis:6379
+      ALLOWED_API_ORIGINS: ${ALLOWED_API_ORIGINS:-https://midday.bastco.org}
+      MIDDAY_DASHBOARD_URL: ${MIDDAY_DASHBOARD_URL:-https://midday.bastco.org}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      MIDDAY_ENCRYPTION_KEY: ${MIDDAY_ENCRYPTION_KEY:-change-me}
+      FILE_KEY_SECRET: ${FILE_KEY_SECRET:-change-me}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://minio.bastco.org}
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: midday-dashboard
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${DASHBOARD_PORT:-3001}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_URL: ${NEXT_PUBLIC_URL:-https://midday.bastco.org}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://middayapi.bastco.org}
+      API_INTERNAL_URL: http://api:3000
+      NEXT_PUBLIC_MINIO_URL: ${NEXT_PUBLIC_MINIO_URL:-https://minio.bastco.org}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: midday-worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      WORKER_ENV: production
+      PORT: "8080"
+      DATABASE_PRIMARY_POOLER_URL: postgresql://${POSTGRES_USER:-midday}:${POSTGRES_PASSWORD:-midday}@db:5432/${POSTGRES_DB:-midday}
+      REDIS_QUEUE_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+
+volumes:
+  midday_db_data:
+  midday_redis_data:
+  minio_data:

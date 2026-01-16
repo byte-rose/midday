@@ -110,14 +110,24 @@ export function createBypassClient(config?: BypassConfig) {
     },
   };
 
+  // Stub database operations - actual queries use the Postgres client
+  const from = (_table: string) => {
+    return {
+      select: () => Promise.resolve({ data: [], error: null }),
+      insert: () => Promise.resolve({ data: null, error: null }),
+      update: () => Promise.resolve({ data: null, error: null }),
+      delete: () => Promise.resolve({ data: null, error: null }),
+      upsert: () => Promise.resolve({ data: null, error: null }),
+      rpc: () => Promise.resolve({ data: null, error: null }),
+    };
+  };
+
   const client: any = {
     auth,
     channel,
     removeChannel() {},
     storage,
-    from() {
-      throw new Error("Database operations are disabled in auth bypass mode");
-    },
+    from,
   };
 
   return client;

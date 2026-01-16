@@ -1,7 +1,12 @@
+import { createBypassClient, isAuthBypassEnabled } from "@midday/supabase/client";
 import type { Database } from "@midday/supabase/types";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function createClient(accessToken?: string) {
+  if (isAuthBypassEnabled()) {
+    return createBypassClient();
+  }
+
   return createSupabaseClient<Database>(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!,
@@ -14,6 +19,10 @@ export async function createClient(accessToken?: string) {
 }
 
 export async function createAdminClient() {
+  if (isAuthBypassEnabled()) {
+    return createBypassClient();
+  }
+
   return createSupabaseClient<Database>(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!,

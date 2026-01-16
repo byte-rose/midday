@@ -61,15 +61,22 @@ services:
       DATABASE_SESSION_POOLER: postgresql://midday:midday@db:5432/midday
       REDIS_URL: redis://redis:6379
       REDIS_QUEUE_URL: redis://redis:6379
-      # Production domains (Coolify)
-      ALLOWED_API_ORIGINS: http://midday.bastco.org,https://midday.bastco.org,http://localhost:3001
-      MIDDAY_DASHBOARD_URL: https://midday.bastco.org
+      # Local development origins
+      ALLOWED_API_ORIGINS: http://localhost:13001,http://localhost:3001
+      MIDDAY_DASHBOARD_URL: http://localhost:13001
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_PUBLIC_URL: https://minio.bastco.org
+      MINIO_PUBLIC_URL: http://localhost:19000
+      FILE_KEY_SECRET: local-file-key-secret-change-me
+      INVOICE_JWT_SECRET: local-invoice-jwt-secret-change-me
+      # Local development - bypass auth
+      AUTH_BYPASS: "true"
+      AUTH_BYPASS_TOKEN: "midday-local-dev-token"
+      AUTH_BYPASS_USER_ID: "11111111-1111-1111-1111-111111111111"
+      AUTH_BYPASS_EMAIL: "dev@midday.local"
     command: ["bash", "-lc", "cd apps/api && bun src/index.ts"]
     healthcheck:
       test:
@@ -94,12 +101,30 @@ services:
     ports:
       - "13001:3001"
     environment:
-      # Production domains (Coolify)
-      NEXT_PUBLIC_URL: https://midday.bastco.org
-      NEXT_PUBLIC_API_URL: https://middayapi.bastco.org
+      # Local development URLs
+      NEXT_PUBLIC_URL: http://localhost:13001
+      NEXT_PUBLIC_API_URL: http://localhost:13003
       API_INTERNAL_URL: http://api:3003
-      NEXT_PUBLIC_MINIO_URL: https://minio.bastco.org
-    command: ["bash", "-lc", "cd apps/dashboard && bun run build && bun run start"]
+      NEXT_PUBLIC_MINIO_URL: http://localhost:19000
+      # Local development - bypass auth
+      AUTH_BYPASS: "true"
+      NEXT_PUBLIC_AUTH_BYPASS: "true"
+      AUTH_BYPASS_TOKEN: "midday-local-dev-token"
+      NEXT_PUBLIC_AUTH_BYPASS_TOKEN: "midday-local-dev-token"
+      AUTH_BYPASS_USER_ID: "11111111-1111-1111-1111-111111111111"
+      NEXT_PUBLIC_AUTH_BYPASS_USER_ID: "11111111-1111-1111-1111-111111111111"
+      AUTH_BYPASS_EMAIL: "dev@midday.local"
+      NEXT_PUBLIC_AUTH_BYPASS_EMAIL: "dev@midday.local"
+    command: ["bash", "-lc", "cd apps/dashboard && bun run dev"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://localhost:3001/ || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
   worker:
     build:

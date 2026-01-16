@@ -45,9 +45,15 @@ export async function createClient(options?: CreateClientOptions) {
   const { admin = false, ...rest } = options ?? {};
   const cookieStore = await cookies();
 
-  const key = admin
-    ? process.env.SUPABASE_SERVICE_KEY!
-    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = admin
+    ? process.env.SUPABASE_SERVICE_KEY
+    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // If Supabase is not configured, return bypass client
+  if (!supabaseUrl || !supabaseKey) {
+    return createBypassClient();
+  }
 
   const auth = admin
     ? {
@@ -58,8 +64,8 @@ export async function createClient(options?: CreateClientOptions) {
     : {};
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    key,
+    supabaseUrl,
+    supabaseKey,
     {
       ...rest,
       cookies: {

@@ -1,3 +1,4 @@
+import { uploadViaApi, getUploadMode } from "@/utils/upload";
 import { createClient } from "@midday/supabase/client";
 import { upload } from "@midday/supabase/storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -26,6 +27,26 @@ export function useUpload() {
     setLoading(true);
 
     try {
+      const uploadMode = getUploadMode();
+      const fullPath = decodeURIComponent(path.join("/"));
+
+      if (uploadMode === "minio") {
+        const result = await uploadViaApi(supabase, {
+          file,
+          bucket,
+          path: fullPath,
+        });
+
+        return {
+          url: result.publicUrl ?? "",
+          path,
+        };
+      }
+
+      if (uploadMode === "none") {
+        throw new Error("No upload provider configured");
+      }
+
       const url = await upload(supabase, {
         path,
         file,
