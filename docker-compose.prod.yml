@@ -10,7 +10,6 @@ services:
     volumes:
       - midday_db_data:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
-      - ./apps/api/migrations/0000_bumpy_chat.sql:/docker-entrypoint-initdb.d/99_schema_source.sql:ro
     ports:
       - "${POSTGRES_PORT:-15432}:5432"
     healthcheck:

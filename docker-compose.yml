@@ -14,7 +14,6 @@ services:
       - midday_db_data:/var/lib/postgresql
       # On SELinux hosts (Fedora/RHEL), the `:z` label is required for bind mounts.
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:z
-      - ./apps/api/migrations/0000_bumpy_chat.sql:/docker-entrypoint-initdb.d/99_schema_source.sql:ro,z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U midday -d midday"]
       interval: 3s
