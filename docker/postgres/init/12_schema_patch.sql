@@ -58,6 +58,13 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'inbox_blocklist_type') THEN
+    CREATE TYPE public.inbox_blocklist_type AS ENUM ('email', 'domain');
+  END IF;
+END $$;
+
 ALTER TYPE "public"."transactionStatus" ADD VALUE IF NOT EXISTS 'exported';
 
 ALTER TABLE public.transactions
@@ -331,6 +338,58 @@ CREATE INDEX IF NOT EXISTS idx_accounting_sync_status
   ON public.accounting_sync_records (team_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS accounting_sync_records_transaction_provider_key
   ON public.accounting_sync_records (transaction_id, provider);
+
+CREATE TABLE IF NOT EXISTS public.inbox_blocklist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  team_id uuid NOT NULL,
+  type public.inbox_blocklist_type NOT NULL,
+  value text NOT NULL
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'inbox_blocklist_team_id_fkey') THEN
+    ALTER TABLE public.inbox_blocklist
+      ADD CONSTRAINT inbox_blocklist_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE cascade;
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS inbox_blocklist_team_type_value_key
+  ON public.inbox_blocklist (team_id, type, value);
+
+CREATE TABLE IF NOT EXISTS public.api_keys (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  key_encrypted text NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  user_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  key_hash text,
+  scopes text[] DEFAULT '{}'::text[] NOT NULL,
+  last_used_at timestamp with time zone
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'api_keys_user_id_fkey') THEN
+    ALTER TABLE public.api_keys
+      ADD CONSTRAINT api_keys_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE cascade;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'api_keys_team_id_fkey') THEN
+    ALTER TABLE public.api_keys
+      ADD CONSTRAINT api_keys_team_id_fkey
+      FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE cascade;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS api_keys_key_idx ON public.api_keys (key_hash);
+CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON public.api_keys (user_id);
+CREATE INDEX IF NOT EXISTS api_keys_team_id_idx ON public.api_keys (team_id);
+CREATE UNIQUE INDEX IF NOT EXISTS api_keys_key_unique ON public.api_keys (key_hash);
 
 CREATE OR REPLACE FUNCTION public.get_bank_account_currencies(team_id uuid)
 RETURNS TABLE (currency text)
