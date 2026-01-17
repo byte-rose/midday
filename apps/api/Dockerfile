@@ -37,8 +37,10 @@ RUN bun install
 # Copy the full source code
 COPY --from=builder /app/out/full/ .
 
-# Copy the prebuilt engine dist from the build context (assumes CI built it)
-COPY apps/engine/dist /app/apps/engine/dist
+# Build engine dist during image build when CI artifacts are not available
+RUN if [ -d "apps/engine" ] && [ ! -d "apps/engine/dist" ]; then \
+      bun --cwd apps/engine run build; \
+    fi
 
 # Runner stage (same as installer to avoid another copy)
 FROM installer AS runner
