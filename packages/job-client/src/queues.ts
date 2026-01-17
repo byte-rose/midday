@@ -26,13 +26,17 @@ function getRedisConnection(): Redis {
 
   const isProduction =
     process.env.NODE_ENV === "production" || process.env.FLY_APP_NAME;
+  const isFly = Boolean(process.env.FLY_APP_NAME);
+  const familyEnv = Number(process.env.REDIS_SOCKET_FAMILY);
+  const socketFamily =
+    familyEnv === 4 || familyEnv === 6 ? familyEnv : isFly ? 6 : 4;
 
   redisConnection = new Redis(redisUrl, {
     maxRetriesPerRequest: null, // Required for BullMQ
     enableReadyCheck: false, // BullMQ handles this
     // Connect eagerly for immediate availability - jobs can be enqueued without waiting for connection
     lazyConnect: false,
-    family: isProduction ? 6 : 4, // IPv6 for Fly.io production, IPv4 for local
+    family: socketFamily, // IPv6 only on Fly or when explicitly configured
     keepAlive: 30000, // Keep connection alive with 30s keepAlive to prevent idle timeouts
     ...(isProduction && {
       // Production settings for Upstash/Fly.io
